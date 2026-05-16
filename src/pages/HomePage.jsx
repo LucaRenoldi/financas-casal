@@ -224,13 +224,13 @@ export default function HomePage({ me, partner, onNav }) {
             </CardTitle>
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
               {shownGoals.map(b => {
-                const pct = b.targetAmount > 0 ? Math.min(Math.round((b.currentAmount / b.targetAmount) * 100), 100) : 0
+                const pct = b.goalAmount > 0 ? Math.min(Math.round((b.currentAmount / b.goalAmount) * 100), 100) : 0
                 const done = pct >= 100
                 return (
                   <div key={b.id}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:5 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:7 }}>
-                        <span style={{ fontSize:16 }}>{b.emoji || '🎯'}</span>
+                        <span style={{ fontSize:16 }}>{b.bank === 'Nubank' ? '🟣' : '🟠'}</span>
                         <span style={{ fontSize:13, fontWeight:500 }}>{b.name}</span>
                         {b.isCoupleGoal && <Tag color="var(--purple)">casal</Tag>}
                         {done && <Tag color="var(--green)">✓ completa</Tag>}
@@ -242,7 +242,7 @@ export default function HomePage({ me, partner, onNav }) {
                     </div>
                     <div style={{ display:'flex', justifyContent:'space-between', marginTop:4 }}>
                       <span style={{ fontSize:10, color:'var(--tx3)' }}>{fmtD(b.currentAmount || 0)}</span>
-                      <span style={{ fontSize:10, color:'var(--tx3)' }}>meta: {fmtD(b.targetAmount || 0)}</span>
+                      <span style={{ fontSize:10, color:'var(--tx3)' }}>meta: {fmtD(b.goalAmount || 0)}</span>
                     </div>
                   </div>
                 )
