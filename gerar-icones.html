@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<body>
+<canvas id="c192" width="192" height="192" style="display:none"></canvas>
+<canvas id="c512" width="512" height="512" style="display:none"></canvas>
+<p>Clique para baixar os ícones:</p>
+<button onclick="gen(192)">Baixar icon-192.png</button>
+<button onclick="gen(512)">Baixar icon-512.png</button>
+<script>
+function gen(size) {
+  const c = document.getElementById('c' + size);
+  const ctx = c.getContext('2d');
+  const r = size * 0.22;
+
+  // fundo verde arredondado
+  ctx.fillStyle = '#1D9E75';
+  ctx.beginPath();
+  ctx.roundRect(0, 0, size, size, r);
+  ctx.fill();
+
+  // emoji 💚 centralizado
+  ctx.font = `${size * 0.55}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('💚', size / 2, size / 2);
+
+  const a = document.createElement('a');
+  a.download = `icon-${size}.png`;
+  a.href = c.toDataURL('image/png');
+  a.click();
+}
+</script>
+</body>
+</html>
