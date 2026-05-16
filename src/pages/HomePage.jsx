@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import { Chart, ArcElement, DoughnutController, Tooltip, Legend } from 'chart.js'
 import { db } from '../lib/firebase'
-import { PageWrap, Card, CardTitle, MetricGrid, Metric, Seg, SplitBar, Empty, fmt, fmtD, CAT_COLOR, CAT_ICON, MONTHS } from '../components/UI'
+import { PageWrap, Card, CardTitle, MetricGrid, Metric, Seg, SplitBar, Empty, fmt, fmtD, CAT_COLOR, CAT_ICON, MONTHS, todayStr } from '../components/UI'
 
 Chart.register(ArcElement, DoughnutController, Tooltip, Legend)
 
@@ -73,6 +73,24 @@ export default function HomePage({ me, partner, onNav }) {
   shownExp.forEach(e => { cats[e.category] = (cats[e.category] || 0) + Number(e.amount) })
   const pieEntries = Object.entries(cats).sort((a, b) => b[1] - a[1])
   const pieTotal   = pieEntries.reduce((s, [, v]) => s + v, 0) || 1
+
+  /* ── faturas em aberto ── */
+  const today = todayStr()
+  const futureInst = rawExpenses.filter(e =>
+    e.isInstallment && e.expenseDate > today &&
+    (view === 'meu' ? e.userId === me?.id : view === 'par' ? e.userId === partner?.id : true)
+  )
+  const instGroupsMap = {}
+  futureInst.forEach(e => {
+    if (!instGroupsMap[e.installmentGroupId]) {
+      instGroupsMap[e.installmentGroupId] = { description: e.description, amount: e.amount, installmentCount: e.installmentCount, remaining: [] }
+    }
+    instGroupsMap[e.installmentGroupId].remaining.push(e)
+  })
+  const instGroups = Object.values(instGroupsMap).map(g => ({
+    ...g, remaining: g.remaining.sort((a, b) => a.expenseDate.localeCompare(b.expenseDate))
+  })).sort((a, b) => (a.remaining[0]?.expenseDate || '').localeCompare(b.remaining[0]?.expenseDate || ''))
+  const instTotal = futureInst.reduce((s, e) => s + Number(e.amount), 0)
 
   /* ── annual data ── */
   const yearStr = String(year)
@@ -253,6 +271,36 @@ export default function HomePage({ me, partner, onNav }) {
             </MetricGrid>
           </div>
 
+          {!loading && instGroups.length > 0 && (
+            <div className="fade-up fade-up-2">
+              <Card>
+                <CardTitle action={<span style={{ fontSize:11, fontWeight:700, color:'var(--purple)' }}>{fmt(instTotal)} em aberto</span>}>
+                  Faturas em aberto
+                </CardTitle>
+                {instGroups.map((grp, i) => {
+                  const next = grp.remaining[0]
+                  const nextDate = next ? new Date(next.expenseDate + 'T12:00').toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }) : ''
+                  const rem = grp.remaining.length
+                  return (
+                    <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 0', borderBottom: i < instGroups.length - 1 ? '1px solid var(--bd)' : 'none' }}>
+                      <div style={{ width:36, height:36, borderRadius:'var(--r-sm)', background:'rgba(167,139,250,0.1)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0 }}>💳</div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:14, fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{grp.description}</div>
+                        <div style={{ fontSize:11, color:'var(--tx2)', marginTop:2 }}>
+                          {rem} parcela{rem > 1 ? 's' : ''} restante{rem > 1 ? 's' : ''} · próxima: {nextDate}
+                        </div>
+                      </div>
+                      <div style={{ textAlign:'right', flexShrink:0 }}>
+                        <div style={{ fontSize:13, fontWeight:700, color:'var(--purple)' }}>{fmtD(grp.amount)}/mês</div>
+                        <div style={{ fontSize:11, color:'var(--tx2)', marginTop:1 }}>total: {fmtD(grp.amount * rem)}</div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </Card>
+            </div>
+          )}
+
           {view === 'jun' && partner && (
             <div className="fade-up fade-up-2">
               <Card>
@@ -338,9 +386,10 @@ export function ExpRow({ e, me, partner }) {
       </div>
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ fontSize:14, fontWeight:500, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{e.description}</div>
-        <div style={{ fontSize:11, color:col, marginTop:2, display:'flex', alignItems:'center', gap:5 }}>
+        <div style={{ fontSize:11, color:col, marginTop:2, display:'flex', alignItems:'center', gap:5, flexWrap:'wrap' }}>
           {e.category}
           {e.isShared && <span style={{ fontSize:9, fontWeight:700, padding:'1px 6px', borderRadius:99, background:'var(--purple-dim,rgba(167,139,250,0.12))', color:'var(--purple)' }}>casal</span>}
+          {e.isInstallment && <span style={{ fontSize:9, fontWeight:700, padding:'1px 6px', borderRadius:99, background:'rgba(167,139,250,0.15)', color:'var(--purple)' }}>💳 {e.installmentNumber}/{e.installmentCount}</span>}
         </div>
       </div>
       <div style={{ textAlign:'right', flexShrink:0 }}>
