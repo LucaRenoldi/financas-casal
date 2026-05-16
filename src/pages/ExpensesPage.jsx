@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { collection, query, where, getDocs, addDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import toast from 'react-hot-toast'
-import { PageWrap, Card, Seg, Modal, Field, Input, Select, Row2, ModalActions, Fab, Empty, fmtD, CAT_COLOR, CAT_ICON, CATEGORIES, todayStr } from '../components/UI'
+import { PageWrap, Card, Seg, Modal, Field, Input, Select, Row2, ModalActions, Fab, Empty, fmtD, CAT_COLOR, CAT_ICON, CATEGORIES, todayStr, DatePicker } from '../components/UI'
 import { ExpRow } from './HomePage'
 
 export default function ExpensesPage({ me, partner }) {
@@ -101,7 +101,7 @@ export default function ExpensesPage({ me, partner }) {
         <Field label="Descrição"><Input value={form.desc} onChange={e => setForm(f=>({...f,desc:e.target.value}))} placeholder="Ex: Supermercado" /></Field>
         <Row2>
           <Field label="Valor (R$)"><Input type="number" inputMode="decimal" value={form.amount} onChange={e => setForm(f=>({...f,amount:e.target.value}))} placeholder="0,00" /></Field>
-          <Field label="Data"><Input type="date" value={form.date} onChange={e => setForm(f=>({...f,date:e.target.value}))} /></Field>
+          <Field label="Data"><DatePicker value={form.date} onChange={d => setForm(f=>({...f,date:d}))} /></Field>
         </Row2>
         <Field label="Categoria">
           <Select value={form.cat} onChange={e => setForm(f=>({...f,cat:e.target.value}))}>

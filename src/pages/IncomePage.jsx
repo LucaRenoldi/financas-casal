@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import toast from 'react-hot-toast'
-import { PageWrap, Card, CardTitle, Seg, Modal, Field, Input, Row2, ModalActions, Fab, Empty, fmt, fmtD, todayStr } from '../components/UI'
+import { PageWrap, Card, CardTitle, Seg, Modal, Field, Input, Row2, ModalActions, Fab, Empty, fmt, fmtD, todayStr, DatePicker } from '../components/UI'
 
 const SOURCES = ['Salário', 'Freelance', 'Investimentos', 'Aluguel', 'Presente', 'Outros']
 
@@ -186,7 +186,7 @@ export default function IncomePage({ me, partner }) {
             </select>
           </Field>
           <Field label="Data">
-            <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+            <DatePicker value={form.date} onChange={d => setForm(f => ({ ...f, date: d }))} />
           </Field>
         </Row2>
         <Field label="Valor (R$)">
