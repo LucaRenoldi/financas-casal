@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { collection, query, where, getDocs, addDoc } from 'firebase/firestore'
+import { Chart, ArcElement, DoughnutController, Tooltip } from 'chart.js'
 import { db } from '../lib/firebase'
 import toast from 'react-hot-toast'
-import { PageWrap, Card, Seg, Modal, Field, Input, Select, Row2, ModalActions, Fab, Empty, fmtD, CAT_COLOR, CAT_ICON, CATEGORIES, todayStr, DatePicker } from '../components/UI'
+import { PageWrap, Card, CardTitle, Seg, Modal, Field, Input, Select, Row2, ModalActions, Fab, Empty, fmt, fmtD, CAT_COLOR, CAT_ICON, CATEGORIES, todayStr, DatePicker } from '../components/UI'
 import { ExpRow } from './HomePage'
+
+Chart.register(ArcElement, DoughnutController, Tooltip)
 
 const EMPTY_FORM = { desc:'', amount:'', date:todayStr(), cat:'Alimentação', shared:false, isInstallment:false, installments:'2' }
 
@@ -23,6 +26,8 @@ export default function ExpensesPage({ me, partner }) {
   const [modal, setModal]     = useState(false)
   const [saving, setSaving]   = useState(false)
   const [form, setForm]       = useState(EMPTY_FORM)
+  const pieRef   = useRef(null)
+  const chartRef = useRef(null)
 
   const viewOpts = [
     { value:'meu', label: me?.name?.split(' ')[0] || 'Minhas' },
@@ -95,6 +100,29 @@ export default function ExpensesPage({ me, partner }) {
 
   const total = shown.reduce((s, e) => s + Number(e.amount), 0)
 
+  const cats = {}
+  shown.forEach(e => { cats[e.category] = (cats[e.category] || 0) + Number(e.amount) })
+  const pieEntries = Object.entries(cats).sort((a, b) => b[1] - a[1])
+  const pieTotal   = pieEntries.reduce((s, [, v]) => s + v, 0) || 1
+
+  useEffect(() => {
+    if (!pieRef.current) return
+    if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null }
+    if (!pieEntries.length) return
+    chartRef.current = new Chart(pieRef.current, {
+      type: 'doughnut',
+      data: {
+        labels: pieEntries.map(([k]) => k),
+        datasets: [{ data: pieEntries.map(([, v]) => v), backgroundColor: pieEntries.map(([k]) => CAT_COLOR[k] || '#888'), borderWidth: 3, borderColor: '#111114', hoverOffset: 6 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '62%',
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ` ${fmtD(c.raw)} (${Math.round(c.raw / pieTotal * 100)}%)` } } }
+      }
+    })
+    return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null } }
+  }, [shown.map(e => e.id).join()])
+
   return (
     <PageWrap>
       <div className="fade-up" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
@@ -111,7 +139,33 @@ export default function ExpensesPage({ me, partner }) {
 
       <div className="fade-up fade-up-1"><Seg options={viewOpts} value={view} onChange={setView} /></div>
 
-      <div className="fade-up fade-up-2">
+      {!loading && pieEntries.length > 0 && (
+        <div className="fade-up fade-up-2">
+          <Card>
+            <CardTitle>Gastos por categoria</CardTitle>
+            <div style={{ display:'flex', gap:16, alignItems:'center' }}>
+              <div style={{ position:'relative', width:110, height:110, flexShrink:0 }}>
+                <canvas ref={pieRef} />
+                <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', pointerEvents:'none' }}>
+                  <div style={{ fontSize:10, color:'var(--tx2)' }}>Total</div>
+                  <div style={{ fontSize:13, fontWeight:700 }}>{fmt(pieTotal)}</div>
+                </div>
+              </div>
+              <div style={{ flex:1, display:'flex', flexDirection:'column', gap:7 }}>
+                {pieEntries.slice(0, 5).map(([cat, val]) => (
+                  <div key={cat} style={{ display:'flex', alignItems:'center', gap:7 }}>
+                    <div style={{ width:7, height:7, borderRadius:'50%', background:CAT_COLOR[cat]||'#888', flexShrink:0 }} />
+                    <span style={{ fontSize:12, flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{CAT_ICON[cat]} {cat}</span>
+                    <span style={{ fontSize:11, fontWeight:700, color:CAT_COLOR[cat]||'#888' }}>{Math.round(val/pieTotal*100)}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      <div className="fade-up fade-up-3">
         {loading ? (
           <div style={{ padding:'2rem', textAlign:'center', color:'var(--tx3)' }}>Carregando…</div>
         ) : !shown.length ? (
