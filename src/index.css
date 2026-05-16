@@ -1,0 +1,99 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Fraunces:ital,wght@0,300;0,400;1,300;1,400&display=swap');
+
+:root {
+  /* Brand */
+  --green: #00C896;
+  --green-dim: rgba(0, 200, 150, 0.12);
+  --green-glow: rgba(0, 200, 150, 0.25);
+  --pink: #FF6B9D;
+  --pink-dim: rgba(255, 107, 157, 0.12);
+  --purple: #A78BFA;
+  --amber: #FBBF24;
+  --red: #F87171;
+  --blue: #60A5FA;
+
+  /* Surfaces */
+  --bg: #0A0A0B;
+  --bg2: #111114;
+  --bg3: #18181C;
+  --bg4: #222228;
+  --bg5: #2A2A32;
+
+  /* Text */
+  --tx1: #F0F0F5;
+  --tx2: #8888A0;
+  --tx3: #44445A;
+
+  /* Borders */
+  --bd: rgba(255,255,255,0.07);
+  --bd2: rgba(255,255,255,0.12);
+  --bd3: rgba(255,255,255,0.18);
+
+  /* Layout */
+  --r: 16px;
+  --r-sm: 10px;
+  --r-xs: 6px;
+  --nav-h: calc(64px + env(safe-area-inset-bottom, 0px));
+  --hdr-h: calc(60px + env(safe-area-inset-top, 0px));
+
+  /* Font */
+  --font: 'Sora', sans-serif;
+  --font-display: 'Fraunces', serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body, #root { height: 100%; overflow: hidden; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--tx1);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+button, input, select, textarea { font-family: var(--font); }
+button { cursor: pointer; border: none; background: none; }
+input, select, textarea { outline: none; }
+a { color: inherit; text-decoration: none; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 0; }
+
+/* Animations */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.fade-up { animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.fade-up-1 { animation-delay: 0.05s; }
+.fade-up-2 { animation-delay: 0.1s; }
+.fade-up-3 { animation-delay: 0.15s; }
+.fade-up-4 { animation-delay: 0.2s; }
+.fade-up-5 { animation-delay: 0.25s; }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg3) 25%, var(--bg4) 50%, var(--bg3) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--r-sm);
+}

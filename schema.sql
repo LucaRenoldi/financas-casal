@@ -3,6 +3,7 @@
 -- Cole isso no SQL Editor do seu projeto Supabase
 -- ============================================================
 
+-- Tabela de perfis (vinculada ao auth.users)
 create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   name text not null,
@@ -12,6 +13,7 @@ create table if not exists profiles (
   created_at timestamptz default now()
 );
 
+-- Tabela de caixinhas / cofrinhos
 create table if not exists boxes (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references profiles(id) on delete cascade,
@@ -25,6 +27,7 @@ create table if not exists boxes (
   updated_at timestamptz default now()
 );
 
+-- Tabela de despesas
 create table if not exists expenses (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references profiles(id) on delete cascade,
@@ -38,6 +41,7 @@ create table if not exists expenses (
   created_at timestamptz default now()
 );
 
+-- Tabela de renda mensal
 create table if not exists income (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references profiles(id) on delete cascade,
@@ -49,13 +53,14 @@ create table if not exists income (
 );
 
 -- ============================================================
--- RLS
+-- RLS (Row Level Security) — cada um vê só os seus dados
 -- ============================================================
 alter table profiles enable row level security;
 alter table boxes enable row level security;
 alter table expenses enable row level security;
 alter table income enable row level security;
 
+-- Profiles: usuário vê o próprio e o do parceiro
 create policy "profiles_select" on profiles for select
   using (id = auth.uid() or id = (
     select partner_id from profiles where id = auth.uid()
@@ -65,6 +70,7 @@ create policy "profiles_insert" on profiles for insert
 create policy "profiles_update" on profiles for update
   using (id = auth.uid());
 
+-- Boxes: usuário vê as próprias e as do parceiro (objetivos do casal)
 create policy "boxes_select" on boxes for select
   using (
     user_id = auth.uid() or
@@ -77,6 +83,7 @@ create policy "boxes_update" on boxes for update
 create policy "boxes_delete" on boxes for delete
   using (user_id = auth.uid());
 
+-- Expenses: idem
 create policy "expenses_select" on expenses for select
   using (
     user_id = auth.uid() or
@@ -89,6 +96,7 @@ create policy "expenses_update" on expenses for update
 create policy "expenses_delete" on expenses for delete
   using (user_id = auth.uid());
 
+-- Income: idem
 create policy "income_select" on income for select
   using (
     user_id = auth.uid() or
