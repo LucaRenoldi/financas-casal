@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+import { collection, query, where, getDocs, addDoc } from 'firebase/firestore'
+import { db } from '../lib/firebase'
 import toast from 'react-hot-toast'
-import { PageWrap, Card, CardTitle, Seg, Modal, Field, Input, Select, Row2, ModalActions, Fab, Empty, fmtD, CAT_COLOR, CAT_ICON, CATEGORIES, todayStr } from '../components/UI'
+import { PageWrap, Card, Seg, Modal, Field, Input, Select, Row2, ModalActions, Fab, Empty, fmtD, CAT_COLOR, CAT_ICON, CATEGORIES, todayStr } from '../components/UI'
 import { ExpRow } from './HomePage'
 
 export default function ExpensesPage({ me, partner }) {
@@ -25,32 +26,43 @@ export default function ExpensesPage({ me, partner }) {
   async function load() {
     if (!me) return
     setLoading(true)
-    const uids = [me.id]; if (partner) uids.push(partner.id)
-    const m = String(month + 1).padStart(2, '0')
-    const { data } = await supabase.from('expenses').select('*')
-      .in('user_id', uids).gte('expense_date', `${year}-${m}-01`).lte('expense_date', `${year}-${m}-31`)
-      .order('expense_date', { ascending: false })
-    setExpenses(data || [])
+    try {
+      const m     = String(month + 1).padStart(2, '0')
+      const start = `${year}-${m}-01`
+      const end   = `${year}-${m}-31`
+      const queries = [getDocs(query(collection(db, 'expenses'), where('userId', '==', me.id)))]
+      if (partner) queries.push(getDocs(query(collection(db, 'expenses'), where('userId', '==', partner.id))))
+      const snaps = await Promise.all(queries)
+      const data = snaps.flatMap(s => s.docs.map(d => ({ id: d.id, ...d.data() })))
+        .filter(e => e.expenseDate >= start && e.expenseDate <= end)
+        .sort((a, b) => b.expenseDate.localeCompare(a.expenseDate))
+      setExpenses(data)
+    } catch (err) {
+      console.error('Erro ao carregar despesas:', err)
+    }
     setLoading(false)
   }
 
-  const shown = view === 'meu' ? expenses.filter(e => e.user_id === me?.id)
-    : view === 'par' ? expenses.filter(e => e.user_id !== me?.id)
+  const shown = view === 'meu' ? expenses.filter(e => e.userId === me?.id)
+    : view === 'par' ? expenses.filter(e => e.userId !== me?.id)
     : expenses
 
   async function save() {
+    if (!me) { toast.error('Perfil não carregado, recarregue a página'); return }
     if (!form.desc || !form.amount) { toast.error('Preencha descrição e valor'); return }
     setSaving(true)
-    const { error } = await supabase.from('expenses').insert({
-      user_id: me.id, description: form.desc, amount: Number(form.amount),
-      category: form.cat, expense_date: form.date, is_shared: form.shared
-    })
-    if (error) toast.error(error.message)
-    else {
+    try {
+      await addDoc(collection(db, 'expenses'), {
+        userId: me.id, description: form.desc, amount: Number(form.amount),
+        category: form.cat, expenseDate: form.date, isShared: form.shared,
+        createdAt: new Date().toISOString(),
+      })
       toast.success('Despesa salva! 💸')
       setModal(false)
       setForm({ desc:'', amount:'', date:todayStr(), cat:'Alimentação', shared:false })
       load()
+    } catch (err) {
+      toast.error(err.message)
     }
     setSaving(false)
   }
@@ -71,9 +83,7 @@ export default function ExpensesPage({ me, partner }) {
         </div>
       </div>
 
-      <div className="fade-up fade-up-1">
-        <Seg options={viewOpts} value={view} onChange={setView} />
-      </div>
+      <div className="fade-up fade-up-1"><Seg options={viewOpts} value={view} onChange={setView} /></div>
 
       <div className="fade-up fade-up-2">
         {loading ? (
@@ -81,25 +91,17 @@ export default function ExpensesPage({ me, partner }) {
         ) : !shown.length ? (
           <Empty icon="✨" title="Sem despesas" sub="Toque em + para adicionar" />
         ) : (
-          <Card>
-            {shown.map(e => <ExpRow key={e.id} e={e} me={me} partner={partner} />)}
-          </Card>
+          <Card>{shown.map(e => <ExpRow key={e.id} e={e} me={me} partner={partner} />)}</Card>
         )}
       </div>
 
       <Fab onClick={() => setModal(true)} />
 
       <Modal open={modal} onClose={() => setModal(false)} title="Nova despesa">
-        <Field label="Descrição">
-          <Input value={form.desc} onChange={e => setForm(f=>({...f,desc:e.target.value}))} placeholder="Ex: Supermercado" />
-        </Field>
+        <Field label="Descrição"><Input value={form.desc} onChange={e => setForm(f=>({...f,desc:e.target.value}))} placeholder="Ex: Supermercado" /></Field>
         <Row2>
-          <Field label="Valor (R$)">
-            <Input type="number" inputMode="decimal" value={form.amount} onChange={e => setForm(f=>({...f,amount:e.target.value}))} placeholder="0,00" />
-          </Field>
-          <Field label="Data">
-            <Input type="date" value={form.date} onChange={e => setForm(f=>({...f,date:e.target.value}))} />
-          </Field>
+          <Field label="Valor (R$)"><Input type="number" inputMode="decimal" value={form.amount} onChange={e => setForm(f=>({...f,amount:e.target.value}))} placeholder="0,00" /></Field>
+          <Field label="Data"><Input type="date" value={form.date} onChange={e => setForm(f=>({...f,date:e.target.value}))} /></Field>
         </Row2>
         <Field label="Categoria">
           <Select value={form.cat} onChange={e => setForm(f=>({...f,cat:e.target.value}))}>
@@ -107,8 +109,7 @@ export default function ExpensesPage({ me, partner }) {
           </Select>
         </Field>
         <label style={{ display:'flex', alignItems:'center', gap:10, fontSize:14, marginBottom:8, cursor:'pointer' }}>
-          <input type="checkbox" checked={form.shared} onChange={e => setForm(f=>({...f,shared:e.target.checked}))}
-            style={{ width:18, height:18, accentColor:'var(--green)' }} />
+          <input type="checkbox" checked={form.shared} onChange={e => setForm(f=>({...f,shared:e.target.checked}))} style={{ width:18, height:18, accentColor:'var(--green)' }} />
           Despesa compartilhada do casal
         </label>
         <ModalActions onCancel={() => setModal(false)} onSave={save} loading={saving} />
@@ -119,8 +120,6 @@ export default function ExpensesPage({ me, partner }) {
 
 function MonthBtn({ onClick, children }) {
   return (
-    <button onClick={onClick} style={{ width:30, height:30, borderRadius:'50%', border:'1px solid var(--bd2)', background:'var(--bg3)', color:'var(--tx1)', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>
-      {children}
-    </button>
+    <button onClick={onClick} style={{ width:30, height:30, borderRadius:'50%', border:'1px solid var(--bd2)', background:'var(--bg3)', color:'var(--tx1)', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>{children}</button>
   )
 }

@@ -1,19 +1,23 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+import { signOut } from 'firebase/auth'
+import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { auth, db } from '../lib/firebase'
 import HomePage from './HomePage'
 import BoxesPage from './BoxesPage'
 import ExpensesPage from './ExpensesPage'
+import IncomePage from './IncomePage'
 import CouplePage from './CouplePage'
 import styles from './AppShell.module.css'
 
 const NAV = [
   { id: 'home',     icon: '⌂',  label: 'Início' },
-  { id: 'boxes',    icon: '◈',  label: 'Caixinhas' },
+  { id: 'income',   icon: '↑',  label: 'Renda' },
   { id: 'expenses', icon: '≡',  label: 'Despesas' },
+  { id: 'boxes',    icon: '◈',  label: 'Caixinhas' },
   { id: 'couple',   icon: '♡',  label: 'Casal' },
 ]
 
-export default function AppShell({ session }) {
+export default function AppShell({ user }) {
   const [page, setPage] = useState('home')
   const [me, setMe] = useState(null)
   const [partner, setPartner] = useState(null)
@@ -21,26 +25,39 @@ export default function AppShell({ session }) {
 
   const refresh = () => setRefreshKey(k => k + 1)
 
-  useEffect(() => {
-    loadProfile()
-  }, [session])
+  useEffect(() => { loadProfile() }, [user])
 
   async function loadProfile() {
-    const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single()
-    setMe(data)
-    if (data?.partner_id) {
-      const { data: p } = await supabase.from('profiles').select('*').eq('id', data.partner_id).single()
-      setPartner(p)
-    } else {
-      setPartner(null)
+    try {
+      let snap = await getDoc(doc(db, 'profiles', user.uid))
+      if (!snap.exists()) {
+        const email = user.email || ''
+        const name = user.displayName || email.split('@')[0] || 'Usuário'
+        const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+        const code = Math.random().toString(36).slice(2, 8).toUpperCase()
+        await setDoc(doc(db, 'profiles', user.uid), {
+          name, avatarInitials: initials, coupleCode: code,
+          partnerId: null, createdAt: new Date().toISOString(),
+        })
+        snap = await getDoc(doc(db, 'profiles', user.uid))
+      }
+      const profile = { id: snap.id, ...snap.data() }
+      setMe(profile)
+      if (profile.partnerId) {
+        const pSnap = await getDoc(doc(db, 'profiles', profile.partnerId))
+        setPartner(pSnap.exists() ? { id: pSnap.id, ...pSnap.data() } : null)
+      } else {
+        setPartner(null)
+      }
+    } catch (err) {
+      console.error('Erro ao carregar perfil:', err)
     }
   }
 
-  const ctx = { me, partner, session, refresh, loadProfile }
+  const ctx = { me, partner, user, refresh, loadProfile }
 
   return (
     <div className={styles.shell}>
-      {/* Header */}
       <header className={styles.header}>
         <div className={styles.headerLogo}>
           <span className={styles.logoMark}>💚</span>
@@ -50,12 +67,12 @@ export default function AppShell({ session }) {
           {me && (
             <div className={styles.userPill}>
               <div className={styles.avatar} style={{ background: 'var(--green-dim)', color: 'var(--green)' }}>
-                {me.avatar_initials}
+                {me.avatarInitials}
               </div>
               <span className={styles.userName}>{me.name.split(' ')[0]}</span>
             </div>
           )}
-          <button className={styles.logoutBtn} onClick={() => supabase.auth.signOut()} title="Sair">
+          <button className={styles.logoutBtn} onClick={() => signOut(auth)} title="Sair">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
               <polyline points="16 17 21 12 16 7"/>
@@ -65,15 +82,14 @@ export default function AppShell({ session }) {
         </div>
       </header>
 
-      {/* Page content */}
       <main className={styles.main}>
         {page === 'home'     && <HomePage     key={refreshKey} {...ctx} onNav={setPage} />}
-        {page === 'boxes'    && <BoxesPage    key={refreshKey} {...ctx} />}
+        {page === 'income'   && <IncomePage   key={refreshKey} {...ctx} />}
         {page === 'expenses' && <ExpensesPage key={refreshKey} {...ctx} />}
+        {page === 'boxes'    && <BoxesPage    key={refreshKey} {...ctx} />}
         {page === 'couple'   && <CouplePage   key={refreshKey} {...ctx} onPartnerLinked={() => { loadProfile(); refresh() }} />}
       </main>
 
-      {/* Bottom nav */}
       <nav className={styles.nav}>
         {NAV.map(n => (
           <button key={n.id} className={`${styles.navItem} ${page === n.id ? styles.navActive : ''}`} onClick={() => setPage(n.id)}>
