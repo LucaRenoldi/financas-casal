@@ -7,12 +7,14 @@ import BoxesPage from './BoxesPage'
 import ExpensesPage from './ExpensesPage'
 import IncomePage from './IncomePage'
 import CouplePage from './CouplePage'
+import HistoryPage from './HistoryPage'
 import styles from './AppShell.module.css'
 
 const NAV = [
   { id: 'home',     icon: '⌂',  label: 'Início' },
   { id: 'income',   icon: '↑',  label: 'Renda' },
   { id: 'expenses', icon: '≡',  label: 'Despesas' },
+  { id: 'history',  icon: '⇅',  label: 'Histórico' },
   { id: 'boxes',    icon: '◈',  label: 'Caixinhas' },
   { id: 'couple',   icon: '♡',  label: 'Casal' },
 ]
@@ -87,6 +89,7 @@ export default function AppShell({ user }) {
         {page === 'income'   && <IncomePage   key={refreshKey} {...ctx} />}
         {page === 'expenses' && <ExpensesPage key={refreshKey} {...ctx} />}
         {page === 'boxes'    && <BoxesPage    key={refreshKey} {...ctx} />}
+        {page === 'history'  && <HistoryPage  key={refreshKey} {...ctx} />}
         {page === 'couple'   && <CouplePage   key={refreshKey} {...ctx} onPartnerLinked={() => { loadProfile(); refresh() }} />}
       </main>
 
